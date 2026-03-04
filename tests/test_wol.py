@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from llm_engine_server.ui import render_dashboard_html
 from llm_engine_server.wol import build_magic_packet, mask_mac_address, normalize_mac_address
 
 
@@ -15,7 +16,13 @@ class WakeOnLanTests(unittest.TestCase):
         self.assertEqual(len(packet), 102)
         self.assertTrue(packet.startswith(b"\xff" * 6))
 
+    def test_dashboard_html_contains_core_controls(self) -> None:
+        html = render_dashboard_html()
+        self.assertIn("/v1/engine/status", html)
+        self.assertIn("/v1/engine/wake", html)
+        self.assertIn("/v1/engine/ensure-ready", html)
+        self.assertIn("LLM Engine Control", html)
+
 
 if __name__ == "__main__":
     unittest.main()
-

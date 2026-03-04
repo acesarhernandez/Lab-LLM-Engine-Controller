@@ -8,6 +8,13 @@ It does three things:
 - checks whether the PC is awake
 - checks whether Ollama is actually ready before other apps try to use it
 
+It also includes a built-in browser dashboard for v1:
+
+- live status polling
+- manual wake button
+- ensure-ready button
+- a readable view of the raw engine signals
+
 The point is to give all of your LLM-using apps one common contract instead of each app inventing its own wake logic.
 
 ## What The API Means
@@ -61,6 +68,38 @@ python -m llm_engine_server
 ```
 
 The server listens on `ENGINE_HOST:ENGINE_PORT` and defaults to `0.0.0.0:8088`.
+
+## Built-In Dashboard
+
+Open the root URL in your browser:
+
+```text
+http://localhost:8088/
+```
+
+Or:
+
+```text
+http://localhost:8088/ui
+```
+
+How it works:
+
+- the dashboard is served by this same app
+- it does not bypass API auth
+- you paste your `ENGINE_API_KEY` into the page
+- the page stores it only in your browser if you choose to remember it
+
+What the dashboard does:
+
+- polls `GET /v1/engine/status`
+- triggers `POST /v1/engine/wake`
+- triggers `POST /v1/engine/ensure-ready`
+
+Important:
+
+- polling the dashboard does not send wake packets by itself
+- only the wake and ensure-ready buttons can trigger a wake
 
 ## Run With Docker
 

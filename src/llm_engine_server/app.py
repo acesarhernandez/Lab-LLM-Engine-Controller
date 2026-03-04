@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from llm_engine_server.controller import (
     EngineConfigurationError,
@@ -19,6 +19,7 @@ from llm_engine_server.models import (
     WakeResponse,
 )
 from llm_engine_server.settings import Settings
+from llm_engine_server.ui import render_dashboard_html
 
 
 def create_app() -> FastAPI:
@@ -35,6 +36,14 @@ def create_app() -> FastAPI:
     )
     app.state.settings = settings
     app.state.controller = controller
+
+    @app.get("/", include_in_schema=False)
+    async def dashboard() -> HTMLResponse:
+        return HTMLResponse(render_dashboard_html())
+
+    @app.get("/ui", include_in_schema=False)
+    async def dashboard_alias() -> HTMLResponse:
+        return HTMLResponse(render_dashboard_html())
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:
@@ -110,4 +119,3 @@ def _require_api_key(
 
     if not secrets.compare_digest(expected, provided):
         raise HTTPException(status_code=401, detail="Invalid API key.")
-

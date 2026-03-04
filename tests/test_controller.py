@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import os
 import unittest
 from datetime import UTC, datetime, timedelta
 
+from llm_engine_server.app import create_app
 from llm_engine_server.controller import EngineController, EngineState, WakeTimeoutError
 from llm_engine_server.settings import Settings
 
@@ -200,6 +203,34 @@ class EngineControllerTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status.state, EngineState.WAKING)
         self.assertEqual(ctx.exception.waited_seconds, 3)
         self.assertEqual(sender.calls, 1)
+
+    def test_status_endpoint_sets_no_cache_headers(self) -> None:
+        os_environ_backup = dict(os.environ)
+        try:
+            os.environ["ENGINE_API_KEY"] = "test-key"
+            app = create_app()
+            route = next(route for route in app.routes if getattr(route, "path", "") == "/v1/engine/status")
+
+            class DummyAppState:
+                settings = type("S", (), {"api_key": "test-key"})()
+                controller = EngineController(build_settings())
+
+            class DummyRequest:
+                app = type("A", (), {"state": DummyAppState()})()
+
+            class DummyResponse:
+                headers = {}
+
+            # This keeps the test lightweight without requiring httpx/starlette test client.
+            result = asyncio.run(route.endpoint(DummyRequest(), DummyResponse()))
+            self.assertIn("state", result.model_dump())
+            self.assertEqual(
+                DummyResponse.headers.get("Cache-Control"),
+                "no-store, no-cache, must-revalidate, max-age=0",
+            )
+        finally:
+            os.environ.clear()
+            os.environ.update(os_environ_backup)
 
 
 if __name__ == "__main__":

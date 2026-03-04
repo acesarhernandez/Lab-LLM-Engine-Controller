@@ -842,7 +842,7 @@ def render_dashboard_html() -> str:
         headers.set("Content-Type", "application/json");
       }
 
-      const response = await fetch(path, { ...options, headers });
+      const response = await fetch(path, { ...options, headers, cache: "no-store" });
       const contentType = response.headers.get("content-type") || "";
       const payload = contentType.includes("application/json")
         ? await response.json().catch(() => ({}))

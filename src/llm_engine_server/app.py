@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from llm_engine_server.controller import (
@@ -50,8 +50,11 @@ def create_app() -> FastAPI:
         return HealthResponse(status="ok")
 
     @app.get("/v1/engine/status", response_model=StatusResponse, dependencies=[Depends(_require_api_key)])
-    async def get_engine_status(request: Request) -> StatusResponse:
+    async def get_engine_status(request: Request, response: Response) -> StatusResponse:
         controller = _controller_from_request(request)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
         return StatusResponse(**controller.get_status().to_dict())
 
     @app.post("/v1/engine/wake", response_model=WakeResponse, dependencies=[Depends(_require_api_key)])

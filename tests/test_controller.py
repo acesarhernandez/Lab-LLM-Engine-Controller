@@ -75,6 +75,7 @@ def build_settings(**overrides: object) -> Settings:
         "wol_enabled": True,
         "wol_mac": "AA:BB:CC:DD:EE:FF",
         "wake_cooldown_seconds": 20,
+        "wake_grace_seconds": 90,
         "ready_timeout_seconds": 30,
         "status_cache_seconds_ready": 10,
         "status_cache_seconds_waking": 3,
@@ -124,6 +125,26 @@ class EngineControllerTests(unittest.TestCase):
         self.assertFalse(second.wake_sent)
         self.assertTrue(second.cooldown_applied)
         self.assertEqual(sender.calls, 1)
+
+    def test_status_stays_waking_during_grace_after_cooldown(self) -> None:
+        clock = FakeClock(datetime(2026, 3, 3, tzinfo=UTC))
+        prober = StaticProber(host=False, ollama=False)
+        sender = RecordingWakeSender()
+        controller = EngineController(
+            build_settings(wake_cooldown_seconds=5, wake_grace_seconds=25),
+            prober=prober,
+            wake_sender=sender,
+            clock=clock.now,
+            sleeper=clock.sleep,
+        )
+
+        controller.wake()
+        clock.advance(10)
+        status = controller.get_status(force_refresh=True)
+
+        self.assertEqual(status.state, EngineState.WAKING)
+        self.assertTrue(status.wake_in_progress)
+        self.assertEqual(status.cooldown_remaining_seconds, 0)
 
     def test_ready_status_uses_cache(self) -> None:
         clock = FakeClock(datetime(2026, 3, 3, tzinfo=UTC))

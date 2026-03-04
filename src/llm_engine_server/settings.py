@@ -76,6 +76,7 @@ class Settings:
     wol_broadcast_ip: str = "255.255.255.255"
     wol_port: int = 9
     wake_cooldown_seconds: int = 20
+    wake_grace_seconds: int = 90
     ready_timeout_seconds: int = 90
     status_cache_seconds_ready: int = 10
     status_cache_seconds_waking: int = 3
@@ -109,6 +110,7 @@ class Settings:
             wol_broadcast_ip=_env_str("ENGINE_WOL_BROADCAST_IP", "255.255.255.255"),
             wol_port=_env_int("ENGINE_WOL_PORT", 9),
             wake_cooldown_seconds=_env_int("ENGINE_WAKE_COOLDOWN_SECONDS", 20),
+            wake_grace_seconds=_env_int("ENGINE_WAKE_GRACE_SECONDS", 90),
             ready_timeout_seconds=_env_int("ENGINE_READY_TIMEOUT_SECONDS", 90),
             status_cache_seconds_ready=_env_int("ENGINE_STATUS_CACHE_SECONDS_READY", 10),
             status_cache_seconds_waking=_env_int("ENGINE_STATUS_CACHE_SECONDS_WAKING", 3),
@@ -145,6 +147,9 @@ class Settings:
         if self.wake_cooldown_seconds < 0:
             errors.append("ENGINE_WAKE_COOLDOWN_SECONDS must be zero or greater")
 
+        if self.wake_grace_seconds < 0:
+            errors.append("ENGINE_WAKE_GRACE_SECONDS must be zero or greater")
+
         if self.ready_timeout_seconds <= 0:
             errors.append("ENGINE_READY_TIMEOUT_SECONDS must be a positive integer")
 
@@ -167,3 +172,8 @@ class Settings:
                     errors.append(f"ENGINE_WOL_MAC is invalid: {exc}")
 
         return errors
+
+    @property
+    def effective_wake_grace_seconds(self) -> int:
+        # Wake status should not flip back to offline before resend cooldown expires.
+        return max(self.wake_grace_seconds, self.wake_cooldown_seconds)

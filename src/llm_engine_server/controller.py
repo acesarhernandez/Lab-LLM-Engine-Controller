@@ -183,7 +183,7 @@ class EngineController:
                     english_summary=f"{self._settings.label} is already awake. Ollama is not ready yet.",
                 )
 
-            if self._has_recent_wake_locked(now):
+            if self._has_recent_wake_for_cooldown_locked(now):
                 waiting_status = self._refresh_status_locked(now)
                 return WakeResult(
                     wake_sent=False,
@@ -293,16 +293,21 @@ class EngineController:
             return self._settings.status_cache_seconds_waking
         return self._settings.status_cache_seconds_offline
 
-    def _has_recent_wake_locked(self, now: datetime) -> bool:
+    def _has_recent_wake_for_cooldown_locked(self, now: datetime) -> bool:
         if self._state.last_wake_sent_at is None:
             return False
         return (now - self._state.last_wake_sent_at).total_seconds() < self._settings.wake_cooldown_seconds
+
+    def _has_recent_wake_for_grace_locked(self, now: datetime) -> bool:
+        if self._state.last_wake_sent_at is None:
+            return False
+        return (now - self._state.last_wake_sent_at).total_seconds() < self._settings.effective_wake_grace_seconds
 
     def _refresh_status_locked(self, now: datetime) -> EngineStatus:
         pc_awake = False
         ollama_ready = False
         validation_errors = self._settings.engine_validation_errors()
-        recent_wake = self._has_recent_wake_locked(now)
+        recent_wake_for_grace = self._has_recent_wake_for_grace_locked(now)
 
         if validation_errors:
             state = EngineState.MISCONFIGURED
@@ -333,7 +338,7 @@ class EngineController:
                 self._state.last_error = None
             elif pc_awake:
                 state = EngineState.PC_ONLINE
-            elif recent_wake:
+            elif recent_wake_for_grace:
                 state = EngineState.WAKING
             else:
                 state = EngineState.OFFLINE
@@ -351,7 +356,7 @@ class EngineController:
             state=state,
             pc_awake=pc_awake,
             ollama_ready=ollama_ready,
-            wake_in_progress=recent_wake and not ollama_ready,
+            wake_in_progress=recent_wake_for_grace and not ollama_ready,
             ready=ollama_ready,
             wake_enabled=self._settings.wol_enabled,
             ollama_base_url=self._settings.ollama_base_url,
@@ -364,7 +369,13 @@ class EngineController:
             last_state_change_at=_format_dt(self._state.last_state_change_at),
             cooldown_remaining_seconds=self._cooldown_remaining_seconds_locked(now),
             last_error=last_error,
-            english_summary=self._build_summary_locked(state, pc_awake, ollama_ready, recent_wake, validation_errors),
+            english_summary=self._build_summary_locked(
+                state,
+                pc_awake,
+                ollama_ready,
+                recent_wake_for_grace,
+                validation_errors,
+            ),
         )
 
         self._state.cached_status = status

@@ -44,6 +44,7 @@ Key settings:
 - `ENGINE_PC_PROBE_PORT`: a normal TCP port that proves the PC is awake
 - `ENGINE_OLLAMA_BASE_URL`: the actual Ollama base URL
 - `ENGINE_WOL_MAC`: MAC address for Wake-on-LAN
+- `ENGINE_WAKE_GRACE_SECONDS`: how long status should stay in `waking` after a wake signal, even if resend cooldown already ended
 
 Why `ENGINE_PC_PROBE_PORT` matters:
 
@@ -196,3 +197,11 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 The runtime code uses the Python standard library for reachability checks so it can run on this machine without `httpx` installed.
 
 The project file still leaves room for adding `httpx` and `pytest` as optional dev dependencies later if you want richer API tests.
+
+## Wake Stability Note
+
+If your PC takes longer to boot than your resend cooldown, status can bounce from `waking` back to `offline` before Ollama is ready.
+To keep state transitions smoother, tune:
+
+- `ENGINE_WAKE_COOLDOWN_SECONDS` (anti-spam resend window)
+- `ENGINE_WAKE_GRACE_SECONDS` (status "waking" window)

@@ -865,7 +865,7 @@ def render_dashboard_html() -> str:
       return payload;
     }
 
-    async function refreshStatus(showSuccess = false) {
+    async function refreshStatus(showSuccess = false, quietErrors = false) {
       try {
         const status = await apiRequest("/v1/engine/status");
         applyStatus(status);
@@ -875,8 +875,10 @@ def render_dashboard_html() -> str:
         setBanner(refs.authBanner, "Connected.", "good");
         return status;
       } catch (error) {
-        setBanner(refs.actionBanner, error.message, "error");
-        if (String(error.message).toLowerCase().includes("api key")) {
+        if (!quietErrors) {
+          setBanner(refs.actionBanner, error.message, "error");
+        }
+        if (!quietErrors && String(error.message).toLowerCase().includes("api key")) {
           setBanner(refs.authBanner, error.message, "error");
         }
         throw error;
@@ -889,7 +891,11 @@ def render_dashboard_html() -> str:
         const result = await apiRequest("/v1/engine/wake", { method: "POST" });
         setBanner(refs.actionBanner, result.english_summary || "Wake request sent.", "good");
         addFeed(result.english_summary || "Wake request sent.", result.wake_sent ? "wake" : "cooldown");
-        await refreshStatus(false);
+        try {
+          await refreshStatus(false, true);
+        } catch (statusError) {
+          addFeed(`Wake sent, but immediate status refresh failed: ${statusError.message}`, "warning");
+        }
       } catch (error) {
         setBanner(refs.actionBanner, error.message, "error");
         addFeed(error.message, "error");
@@ -912,7 +918,11 @@ def render_dashboard_html() -> str:
           `${result.english_summary || "Engine is ready."} Waited ${result.waited_seconds}s.`,
           result.already_ready ? "ready" : "ensure"
         );
-        await refreshStatus(false);
+        try {
+          await refreshStatus(false, true);
+        } catch (statusError) {
+          addFeed(`Ensure-ready succeeded, but status refresh failed: ${statusError.message}`, "warning");
+        }
       } catch (error) {
         setBanner(refs.actionBanner, error.message, "error");
         addFeed(error.message, "error");
@@ -931,7 +941,7 @@ def render_dashboard_html() -> str:
           return;
         }
         try {
-          await refreshStatus(false);
+          await refreshStatus(false, true);
         } catch {
           // Keep the last visible state; the banner already explains the issue.
         }

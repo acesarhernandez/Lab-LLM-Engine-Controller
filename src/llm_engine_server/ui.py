@@ -136,6 +136,12 @@ def render_dashboard_html() -> str:
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    .pill-row .state-pill {
+      margin-left: auto;
     }
 
     .state-pill {
@@ -172,6 +178,10 @@ def render_dashboard_html() -> str:
 
     .state-offline,
     .state-misconfigured {
+      color: var(--signal-alert);
+    }
+
+    .state-stale {
       color: var(--signal-alert);
     }
 
@@ -464,7 +474,7 @@ def render_dashboard_html() -> str:
       display: none !important;
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 900px) {
       .hero,
       .layout,
       .status-blade {
@@ -475,6 +485,14 @@ def render_dashboard_html() -> str:
       .hero-side,
       .card {
         padding: 18px;
+      }
+
+      .pill-row {
+        justify-content: flex-start;
+      }
+
+      .pill-row .state-pill {
+        margin-left: 0;
       }
     }
 
@@ -795,9 +813,37 @@ def render_dashboard_html() -> str:
       return parsed.toLocaleString();
     }
 
-    function applyStatePill(state) {
+    function applyStatePill(state, label = null) {
       refs.heroState.className = "state-pill state-" + state;
-      refs.heroStateText.textContent = state.replace("_", " ");
+      refs.heroStateText.textContent = label || state.replaceAll("_", " ");
+    }
+
+    function applyTransientStatus(state, summary, pcAwake, ollamaReady, wakeInProgress) {
+      applyStatePill(state);
+      refs.summaryCopy.textContent = summary || "No summary available.";
+      refs.statusSummaryValue.textContent = summary || "No summary available.";
+      refs.stateValue.textContent = state;
+      refs.pcAwakeValue.textContent = boolText(Boolean(pcAwake));
+      refs.ollamaReadyValue.textContent = boolText(Boolean(ollamaReady));
+      refs.wakeProgressValue.textContent = boolText(Boolean(wakeInProgress));
+      refs.calloutCopy.innerHTML = state === "ready"
+        ? "<strong>Ready</strong> means other apps can safely use Ollama right now."
+        : state === "pc_online"
+          ? "<strong>PC online</strong> means Windows is up, but Ollama is still starting."
+          : state === "waking"
+            ? "<strong>Waking</strong> means a wake signal was sent recently and the PC is still coming up."
+            : "<strong>Offline</strong> means the PC and Ollama are not reachable yet.";
+    }
+
+    function applyStatusUnavailable(reason) {
+      applyStatePill("stale", "status unavailable");
+      refs.summaryCopy.textContent = "The dashboard could not fetch a fresh status from the server.";
+      refs.statusSummaryValue.textContent = reason || "Status request failed.";
+      refs.stateValue.textContent = "status_unavailable";
+      refs.pcAwakeValue.textContent = "Unknown";
+      refs.ollamaReadyValue.textContent = "Unknown";
+      refs.wakeProgressValue.textContent = "Unknown";
+      refs.calloutCopy.innerHTML = "<strong>Status unavailable</strong> means the UI could not confirm current engine state.";
     }
 
     function applyStatus(status) {
@@ -881,6 +927,7 @@ def render_dashboard_html() -> str:
         if (!quietErrors && String(error.message).toLowerCase().includes("api key")) {
           setBanner(refs.authBanner, error.message, "error");
         }
+        applyStatusUnavailable(error.message);
         throw error;
       }
     }
@@ -889,6 +936,13 @@ def render_dashboard_html() -> str:
       setBusy(true, "Waking");
       try {
         const result = await apiRequest("/v1/engine/wake", { method: "POST" });
+        applyTransientStatus(
+          result.state || "waking",
+          result.english_summary || "Wake request sent.",
+          result.pc_awake,
+          result.ollama_ready,
+          result.wake_in_progress
+        );
         setBanner(refs.actionBanner, result.english_summary || "Wake request sent.", "good");
         addFeed(result.english_summary || "Wake request sent.", result.wake_sent ? "wake" : "cooldown");
         try {
@@ -913,6 +967,13 @@ def render_dashboard_html() -> str:
           method: "POST",
           body: JSON.stringify(payload)
         });
+        applyTransientStatus(
+          result.state || "offline",
+          result.english_summary || "Ensure-ready request completed.",
+          result.pc_awake,
+          result.ollama_ready,
+          result.wake_in_progress
+        );
         setBanner(refs.actionBanner, result.english_summary || "Engine is ready.", "good");
         addFeed(
           `${result.english_summary || "Engine is ready."} Waited ${result.waited_seconds}s.`,
@@ -982,6 +1043,15 @@ def render_dashboard_html() -> str:
       refs.rememberKeyToggle.checked = false;
       storeKey("");
       stopPolling();
+      latestStatus = null;
+      applyStatePill("stale", "not connected");
+      refs.stateValue.textContent = "not_connected";
+      refs.pcAwakeValue.textContent = "Unknown";
+      refs.ollamaReadyValue.textContent = "Unknown";
+      refs.wakeProgressValue.textContent = "Unknown";
+      refs.summaryCopy.textContent = "Paste the API key, then connect to load live engine status.";
+      refs.statusSummaryValue.textContent = "No status loaded yet.";
+      refs.calloutCopy.innerHTML = "<strong>Not connected</strong> means this browser is not actively reading live engine state.";
       setBanner(refs.authBanner, "Saved key cleared.", "");
       setBanner(refs.actionBanner, "", "");
       addFeed("Saved API key cleared from this browser.", "clear");
@@ -1027,8 +1097,32 @@ def render_dashboard_html() -> str:
       }
     });
 
+    async function refreshWhenVisible() {
+      if (!getApiKey()) {
+        return;
+      }
+      try {
+        await refreshStatus(false, true);
+      } catch {
+        // Quiet refresh-on-focus failures.
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        refreshWhenVisible();
+      }
+    });
+
+    window.addEventListener("focus", () => {
+      refreshWhenVisible();
+    });
+
     hydrateStoredKey();
     addFeed("Dashboard loaded. Paste the API key to start.", "boot");
+    if (getApiKey()) {
+      connectAndLoad();
+    }
   </script>
 </body>
 </html>

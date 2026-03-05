@@ -1004,7 +1004,7 @@ def render_dashboard_html() -> str:
         try {
           await refreshStatus(false, true);
         } catch {
-          // Keep the last visible state; the banner already explains the issue.
+          // refreshStatus already applies the "status unavailable" fallback view.
         }
       }, POLL_INTERVAL_MS);
     }

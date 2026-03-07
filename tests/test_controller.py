@@ -206,6 +206,26 @@ class EngineControllerTests(unittest.TestCase):
         self.assertEqual(result.waited_seconds, 4)
         self.assertEqual(sender.calls, 1)
 
+    def test_ensure_ready_succeeds_when_host_probe_fails_but_ollama_becomes_ready(self) -> None:
+        clock = FakeClock(datetime(2026, 3, 3, tzinfo=UTC))
+        prober = ThresholdProber(clock, host_after_seconds=999, ollama_after_seconds=4)
+        sender = RecordingWakeSender()
+        controller = EngineController(
+            build_settings(),
+            prober=prober,
+            wake_sender=sender,
+            clock=clock.now,
+            sleeper=clock.sleep,
+        )
+
+        result = controller.ensure_ready(timeout_seconds=10)
+
+        self.assertTrue(result.wake_sent)
+        self.assertTrue(result.status.ready)
+        self.assertEqual(result.status.state, EngineState.READY)
+        self.assertEqual(result.waited_seconds, 4)
+        self.assertEqual(sender.calls, 1)
+
     def test_ensure_ready_times_out_when_engine_never_comes_online(self) -> None:
         clock = FakeClock(datetime(2026, 3, 3, tzinfo=UTC))
         prober = ThresholdProber(clock, host_after_seconds=50, ollama_after_seconds=50)

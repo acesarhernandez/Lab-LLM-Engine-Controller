@@ -5,6 +5,7 @@ import secrets
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from llm_engine_server import __version__
 from llm_engine_server.controller import (
     EngineConfigurationError,
     EngineController,
@@ -28,7 +29,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="LLM Engine Server",
-        version="0.1.0",
+        version=__version__,
         description=(
             "Wake-on-LAN and readiness control server for a single shared homelab "
             "LLM engine host."
@@ -39,11 +40,11 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def dashboard() -> HTMLResponse:
-        return HTMLResponse(render_dashboard_html())
+        return HTMLResponse(render_dashboard_html(release_version=__version__))
 
     @app.get("/ui", include_in_schema=False)
     async def dashboard_alias() -> HTMLResponse:
-        return HTMLResponse(render_dashboard_html())
+        return HTMLResponse(render_dashboard_html(release_version=__version__))
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

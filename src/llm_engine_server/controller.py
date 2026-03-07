@@ -322,7 +322,14 @@ class EngineController:
                     self._settings.pc_probe_timeout_seconds,
                 )
 
-            should_probe_ollama = pc_awake or self._settings.pc_probe_port is None
+            # If host probe is unreliable (common on Windows firewalls), still
+            # probe Ollama while waking so status can advance to READY.
+            should_probe_ollama = (
+                pc_awake
+                or self._settings.pc_probe_port is None
+                or recent_wake_for_grace
+                or self._state.last_state == EngineState.READY
+            )
             if should_probe_ollama:
                 ollama_ready = self._prober.probe_ollama(
                     self._settings.ollama_base_url,

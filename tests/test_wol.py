@@ -23,6 +23,12 @@ class WakeOnLanTests(unittest.TestCase):
         self.assertIn("/v1/engine/ensure-ready", html)
         self.assertIn("LLM Engine Control", html)
 
+    def test_dashboard_html_renders_release_version(self) -> None:
+        html = render_dashboard_html("9.9.9")
+        self.assertIn("Release 9.9.9 Control Surface", html)
+        self.assertIn("LLM Engine Server Release 9.9.9", html)
+        self.assertNotIn("__RELEASE_VERSION__", html)
+
 
 if __name__ == "__main__":
     unittest.main()

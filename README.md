@@ -2,6 +2,9 @@
 
 This project is a small control-plane service for one shared homelab LLM host.
 
+Current release: `0.2.0`  
+Release notes: [CHANGELOG.md](CHANGELOG.md)
+
 It does three things:
 
 - sends Wake-on-LAN packets to the gaming PC

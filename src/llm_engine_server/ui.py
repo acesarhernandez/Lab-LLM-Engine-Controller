@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from html import escape
 
-def render_dashboard_html() -> str:
-    return """<!DOCTYPE html>
+
+def render_dashboard_html(release_version: str = "0.2.0") -> str:
+    html = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -474,6 +476,17 @@ def render_dashboard_html() -> str:
       display: none !important;
     }
 
+    .footer-meta {
+      margin-top: 18px;
+      text-align: right;
+      color: var(--muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      opacity: 0.9;
+    }
+
     @media (max-width: 900px) {
       .hero,
       .layout,
@@ -510,6 +523,10 @@ def render_dashboard_html() -> str:
         width: 100%;
         justify-content: center;
       }
+
+      .footer-meta {
+        text-align: left;
+      }
     }
   </style>
 </head>
@@ -517,7 +534,7 @@ def render_dashboard_html() -> str:
   <main class="shell">
     <section class="hero">
       <div class="panel hero-main">
-        <p class="eyebrow">V1 Control Surface</p>
+        <p class="eyebrow">Release __RELEASE_VERSION__ Control Surface</p>
         <h1 class="hero-title">LLM engine wake and ready status.</h1>
         <p class="hero-copy">
           This dashboard watches the same backend API your other apps will use. It never triggers wake
@@ -695,6 +712,7 @@ def render_dashboard_html() -> str:
         </section>
       </section>
     </section>
+    <footer class="footer-meta">LLM Engine Server Release __RELEASE_VERSION__</footer>
   </main>
 
   <script>
@@ -1127,3 +1145,5 @@ def render_dashboard_html() -> str:
 </body>
 </html>
 """
+    safe_version = escape(release_version, quote=True)
+    return html.replace("__RELEASE_VERSION__", safe_version)
